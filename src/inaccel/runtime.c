@@ -588,6 +588,7 @@ cl_resource create_resource(unsigned int device_id) {
 		FILE *serial = fopen(path, "r");
 		if (serial) {
 			char serial_no[50];
+			serial_no[0] = '\0';
 
 			if (fscanf(serial,"%s", serial_no)) {
 				resource->serial_no = strdup(serial_no);
