@@ -337,7 +337,7 @@ cl_resource create_resource(unsigned int device_id) {
 
 	memset(name, 0, raw_name_size * sizeof(char));
 
-	const char *regex = "^([^ : ]+) : .*_(..)0000(.).$";
+	const char *regex = "^([^ : ]+) : .*_(.+)0000(.).$";
 
 	regex_t compile;
 	regmatch_t group[4];
@@ -792,6 +792,9 @@ char *get_resource_version(cl_resource resource) {
  * @return 0 on success; 1 on failure.
  */
 int program_resource_with_binary(cl_resource resource, size_t size, const void *binary) {
+	printf("Programming device, size: %lu, binary: %p\n",size, binary);
+	fflush(stdout);
+
 	if (resource->program) if (inclReleaseProgram(resource->program)) goto CATCH;
 
 	if (!(resource->program = inclCreateProgramWithBinary(resource->context, resource->device_id, size, binary))) goto CATCH;
