@@ -318,6 +318,28 @@ int inclGetDeviceInfo(cl_device_id device, cl_device_info param_name, size_t par
 	}
 }
 
+/* Get specific information about the OpenCL kernel. */
+int inclGetKernelInfo(cl_kernel kernel, cl_kernel_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret) {
+	cl_int errcode_ret = clGetKernelInfo(kernel, param_name, param_value_size, param_value, param_value_size_ret);
+	if (errcode_ret != CL_SUCCESS) {
+		fprintf(stderr, "Error: clGetKernelInfo %s (%d)\n", inclCheckErrorCode(errcode_ret), errcode_ret);
+		return EXIT_FAILURE;
+	} else {
+		return EXIT_SUCCESS;
+	}
+}
+
+/* Get specific information about the OpenCL buffer. */
+int inclGetMemObjectInfo(cl_mem memobj, cl_mem_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret ) {
+	cl_int errcode_ret = clGetMemObjectInfo(memobj, param_name, param_value_size, param_value, param_value_size_ret);
+	if (errcode_ret != CL_SUCCESS) {
+		fprintf(stderr, "Error: clGetMemObjectInfo %s (%d)\n", inclCheckErrorCode(errcode_ret), errcode_ret);
+		return EXIT_FAILURE;
+	} else {
+		return EXIT_SUCCESS;
+	}
+}
+
 /* Obtain specified platform, if available. */
 cl_platform_id inclGetPlatformID(const char *platform_id) {
 	cl_platform_id platform = (cl_platform_id) malloc(sizeof(cl_platform_id));
@@ -449,6 +471,17 @@ int inclReleaseProgram(cl_program program) {
 	} else {
 		return EXIT_SUCCESS;
 	}
+}
+
+/* Increments the memory object reference count. */
+int inclRetainMemObject(cl_mem memobj) {
+		cl_int errcode_ret = clRetainMemObject(memobj);
+		if (errcode_ret != CL_SUCCESS) {
+			fprintf(stderr, "Error: clRetainMemObject %s (%d)\n", inclCheckErrorCode(errcode_ret), errcode_ret);
+			return EXIT_FAILURE;
+		} else {
+			return EXIT_SUCCESS;
+		}
 }
 
 /* Used to set the argument value for a specific argument of a kernel. */

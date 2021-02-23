@@ -685,7 +685,7 @@ char *get_memory_type(cl_memory memory) {
  */
 char *get_resource_name(cl_resource resource) {
 	if (resource->name)
-		return resource->name;
+		return strdup(resource->name);
 	else
 		return strdup("-");
 }
@@ -767,7 +767,7 @@ float get_resource_temperature(cl_resource resource) {
  */
 char *get_resource_vendor(cl_resource resource) {
 	if (resource->vendor)
-		return resource->vendor;
+		return strdup(resource->vendor);
 	else
 		return strdup("-");
 }
@@ -779,7 +779,7 @@ char *get_resource_vendor(cl_resource resource) {
  */
 char *get_resource_version(cl_resource resource) {
 	if (resource->version)
-		return resource->version;
+		return strdup(resource->version);
 	else
 		return strdup("-");
 }

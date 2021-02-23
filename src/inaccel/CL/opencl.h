@@ -49,6 +49,12 @@ int inclGetDeviceIDs(cl_platform_id platform, cl_uint num_entries, cl_device_id 
 /* Get specific information about the OpenCL device. */
 int inclGetDeviceInfo(cl_device_id device, cl_device_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 
+/* Get specific information about the OpenCL kernel. */
+int inclGetKernelInfo(cl_kernel kernel, cl_kernel_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
+
+/* Get specific information about the OpenCL buffer. */
+int inclGetMemObjectInfo(cl_mem memobj, cl_mem_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret );
+
 /* Obtain specified  platform, if available. */
 cl_platform_id inclGetPlatformID(const char *platform_id);
 
@@ -72,6 +78,9 @@ int inclReleaseMemObject(cl_mem memobj);
 
 /* Decrements the program reference count. */
 int inclReleaseProgram(cl_program program);
+
+/* Increments the memory object reference count. */
+int inclRetainMemObject(cl_mem memobj);
 
 /* Used to set the argument value for a specific argument of a kernel. */
 int inclSetKernelArg(cl_kernel kernel, cl_uint arg_index, size_t arg_size, const void *arg_value);
