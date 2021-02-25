@@ -29,6 +29,12 @@ struct mem_topology {
 	int32_t m_count; //Number of mem_data
 	struct mem_data m_mem_data[1]; //Should be sorted on mem_type
 };
+
+typedef struct{
+	unsigned flags;
+	void *obj;
+	void *param;
+} cl_mem_ext_ptr_t;
 #endif
 
 /* CL buffer struct (Type). */
@@ -39,18 +45,21 @@ struct _cl_buffer {
 #endif
 	cl_command_queue command_queue;
 	cl_mem mem;
+	cl_memory memory;
 };
 
 /* CL compute unit struct (Type). */
 struct _cl_compute_unit {
 	cl_command_queue command_queue;
 	cl_kernel kernel;
+	cl_mem *args;
 };
 
 /* CL memory struct (Type). */
 struct _cl_memory {
 	unsigned int id;
 	cl_resource resource;
+	cl_mem page_buf;
 };
 
 /* CL resource struct (Type). */
@@ -223,13 +232,6 @@ cl_buffer create_buffer(cl_memory memory, size_t size, void *array) {
 #endif
 #ifdef Xilinx
 	cl_uint CL_MEM_EXT_PTR = 1 << 31;
-
-	typedef struct{
-		unsigned flags;
-		void *obj;
-		void *param;
-	} cl_mem_ext_ptr_t;
-
 	cl_uint CL_MEMORY = memory->id | (1 << 31);
 
 	cl_mem_ext_ptr_t ext_ptr;
@@ -241,6 +243,8 @@ cl_buffer create_buffer(cl_memory memory, size_t size, void *array) {
 #endif
 
 	if (!(buffer->command_queue = inclCreateCommandQueue(memory->resource->context, memory->resource->device_id))) goto CATCH;
+
+	buffer->memory = memory;
 
 	return buffer;
 CATCH:
@@ -261,6 +265,11 @@ cl_compute_unit create_compute_unit(cl_resource resource, const char *name) {
 	if (!(compute_unit->kernel = inclCreateKernel(resource->program, name))) goto CATCH;
 
 	if (!(compute_unit->command_queue = inclCreateCommandQueue(resource->context, resource->device_id))) goto CATCH;
+
+	cl_uint num_arguments;
+	inclGetKernelInfo(compute_unit->kernel, CL_KERNEL_NUM_ARGS, sizeof(cl_uint), &num_arguments, NULL);
+
+	compute_unit->args = (cl_mem *) calloc(num_arguments, sizeof(cl_mem));
 
 	return compute_unit;
 CATCH:
@@ -287,6 +296,16 @@ cl_memory create_memory(cl_resource resource, unsigned int index) {
 
 		memory->id = index;
 		memory->resource = resource;
+
+		cl_uint CL_MEM_EXT_PTR = 1 << 31;
+		cl_uint CL_MEMORY = memory->id | (1 << 31);
+
+		cl_mem_ext_ptr_t ext_ptr;
+		ext_ptr.flags = CL_MEMORY;
+		ext_ptr.obj = NULL;
+		ext_ptr.param = 0;
+
+		if (!(memory->page_buf = inclCreateBuffer(memory->resource->context, CL_MEM_EXT_PTR | CL_MEM_WRITE_ONLY, 4096, &ext_ptr))) return NULL;
 
 		return memory;
 	}
@@ -641,7 +660,7 @@ size_t get_memory_size(cl_memory memory) {
 #ifdef Xilinx
 	// Cross-check that the memory still exists in the topology
 	if (memory->resource->topology->m_mem_data[memory->id].m_used) {
-		return memory->resource->topology->m_mem_data[memory->id].m_size * 1024;
+		return memory->resource->topology->m_mem_data[memory->id].m_size * 1024 - 4096; // minus page_buf size
 	}
 
 	return 0;
@@ -862,6 +881,8 @@ void release_compute_unit(cl_compute_unit compute_unit) {
 
 	inclReleaseKernel(compute_unit->kernel);
 
+	free(compute_unit->args);
+
 	free(compute_unit);
 }
 
@@ -870,6 +891,8 @@ void release_compute_unit(cl_compute_unit compute_unit) {
  * @param memory Refers to a valid memory object.
  */
 void release_memory(cl_memory memory) {
+	inclReleaseMemObject(memory->page_buf);
+
 	if(memory) free(memory);
 }
 
@@ -907,7 +930,19 @@ void release_resource(cl_resource resource) {
  * @return 0 on success; 1 on failure.
  */
 int run_compute_unit(cl_compute_unit compute_unit) {
-	return inclEnqueueTask(compute_unit->command_queue, compute_unit->kernel);
+	int ret = inclEnqueueTask(compute_unit->command_queue, compute_unit->kernel);
+
+	cl_uint num_arguments;
+	inclGetKernelInfo(compute_unit->kernel, CL_KERNEL_NUM_ARGS, sizeof(cl_uint), &num_arguments, NULL);
+
+	int index;
+	for (index = 0; index < num_arguments; index++) {
+		if (compute_unit->args[index]) {
+			inclSetKernelArg(compute_unit->kernel, index, sizeof(cl_mem), &compute_unit->args[index]);
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -923,6 +958,8 @@ int set_compute_unit_arg(cl_compute_unit compute_unit, unsigned int index, size_
 		return inclSetKernelArg(compute_unit->kernel, index, size, value);
 	} else {
 		cl_buffer buffer = (cl_buffer) value;
+
+		if(!compute_unit->args[index]) compute_unit->args[index] = buffer->memory->page_buf;
 
 		return inclSetKernelArg(compute_unit->kernel, index, sizeof(cl_mem), &buffer->mem);
 	}
